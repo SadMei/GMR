@@ -4,7 +4,13 @@ import mujoco as mj
 import mujoco.viewer as mjv
 import imageio
 from scipy.spatial.transform import Rotation as R
-from general_motion_retargeting import ROBOT_XML_DICT, ROBOT_BASE_DICT, VIEWER_CAM_DISTANCE_DICT
+from general_motion_retargeting import (
+    ROBOT_XML_DICT,
+    ROBOT_VIEWER_XML_DICT,
+    ROBOT_VIEWER_ROOT_ROT_OFFSET_DICT,
+    ROBOT_BASE_DICT,
+    VIEWER_CAM_DISTANCE_DICT,
+)
 from loop_rate_limiters import RateLimiter
 import numpy as np
 from rich import print
@@ -57,7 +63,7 @@ class RobotMotionViewer:
                 ):
         
         self.robot_type = robot_type
-        self.xml_path = ROBOT_XML_DICT[robot_type]
+        self.xml_path = ROBOT_VIEWER_XML_DICT.get(robot_type, ROBOT_XML_DICT[robot_type])
         self.model = mj.MjModel.from_xml_path(str(self.xml_path))
         self.data = mj.MjData(self.model)
         self.robot_base = ROBOT_BASE_DICT[robot_type]
@@ -105,7 +111,7 @@ class RobotMotionViewer:
             human_pos_offset=np.array([0.0, 0.0, 0]),
             # rate limit
             rate_limit=True, 
-            follow_camera=True,
+            follow_camera=None,
             ):
         """
         by default visualize robot motion.
@@ -117,6 +123,16 @@ class RobotMotionViewer:
         else, the motion will be visualized as fast as possible.
         """
         
+        if follow_camera is None:
+            follow_camera = self.camera_follow
+
+        root_rot = np.asarray(root_rot)
+        root_rot_offset = ROBOT_VIEWER_ROOT_ROT_OFFSET_DICT.get(self.robot_type)
+        if root_rot_offset is not None:
+            root_rot_quat = R.from_quat(root_rot[[1, 2, 3, 0]])
+            offset_quat = R.from_quat(np.asarray(root_rot_offset)[[1, 2, 3, 0]])
+            root_rot = (root_rot_quat * offset_quat).as_quat()[[3, 0, 1, 2]]
+
         self.data.qpos[:3] = root_pos
         self.data.qpos[3:7] = root_rot # quat need to be scalar first! for mujoco
         self.data.qpos[7:] = dof_pos

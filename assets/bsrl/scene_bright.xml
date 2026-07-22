@@ -1,0 +1,34 @@
+<mujoco model="bsrl_bright_scene">
+  <!--
+    Reference scene settings for inspecting the BSRL URDF.
+    MuJoCo's scene XML cannot directly include this repo's URDF as a child model,
+    so scripts/inspect_bsrl_urdf.py applies the same floor/light settings in code.
+  -->
+  <visual>
+    <headlight diffuse="0.95 0.95 0.95" ambient="0.55 0.55 0.55" specular="0.15 0.15 0.15" />
+    <rgba haze="1 1 1 1" />
+    <global azimuth="-140" elevation="-25" />
+  </visual>
+  <asset>
+    <texture type="skybox" builtin="flat" rgb1="0.97 0.98 1.0" rgb2="0.97 0.98 1.0" width="512" height="3072" />
+    <texture
+      type="2d"
+      name="groundplane"
+      builtin="checker"
+      rgb1="0.86 0.88 0.90"
+      rgb2="0.93 0.94 0.95"
+      width="300"
+      height="300" />
+    <material
+      name="groundplane"
+      texture="groundplane"
+      texuniform="true"
+      texrepeat="6 6"
+      reflectance="0.08" />
+  </asset>
+  <worldbody>
+    <light pos="0 0 3.5" dir="0 0 -1" directional="true" diffuse="0.95 0.95 0.95" />
+    <light pos="2 -1 2.5" dir="-0.6 0.2 -1" directional="true" diffuse="0.7 0.7 0.7" />
+    <geom name="floor" type="plane" size="0 0 0.05" material="groundplane" />
+  </worldbody>
+</mujoco>

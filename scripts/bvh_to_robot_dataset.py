@@ -1,158 +1,139 @@
 import argparse
-import pathlib
+import fnmatch
 import os
-import mujoco as mj
-import numpy as np
-from tqdm import tqdm
-import torch
 import pickle
 
-from general_motion_retargeting.utils.lafan1 import load_lafan1_file
-from general_motion_retargeting.kinematics_model import KinematicsModel
-from general_motion_retargeting import GeneralMotionRetargeting as GMR
+import mujoco as mj
+import numpy as np
 from rich import print
+from tqdm import tqdm
+
+from general_motion_retargeting import GeneralMotionRetargeting as GMR
+from general_motion_retargeting.grounding import RobotGrounder
+from general_motion_retargeting.utils.lafan1 import load_bvh_file
+
+
+def joint_names_in_qpos_order(model):
+    joints = []
+    for joint_id in range(model.njnt):
+        if model.jnt_type[joint_id] == mj.mjtJoint.mjJNT_FREE:
+            continue
+        joints.append((int(model.jnt_qposadr[joint_id]), mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, joint_id)))
+    return [name for _, name in sorted(joints)]
+
+
+def body_positions(model, qpos_sequence):
+    data = mj.MjData(model)
+    body_names = [mj.mj_id2name(model, mj.mjtObj.mjOBJ_BODY, body_id) for body_id in range(1, model.nbody)]
+    positions = np.empty((len(qpos_sequence), len(body_names), 3), dtype=np.float32)
+    for frame_idx, qpos in enumerate(qpos_sequence):
+        data.qpos[:] = qpos
+        mj.mj_forward(model, data)
+        positions[frame_idx] = data.xpos[1:]
+    return positions, body_names
+
+
+def retarget_file(source_path, target_path, robot, motion_fps, ground_offset, verbose):
+    human_frames, human_height = load_bvh_file(source_path, format="lafan1")
+    retargeter = GMR(
+        src_human="bvh_lafan1",
+        tgt_robot=robot,
+        actual_human_height=human_height,
+        verbose=verbose,
+    )
+
+    qpos = np.empty((len(human_frames), retargeter.model.nq), dtype=np.float64)
+    for frame_idx, human_frame in enumerate(tqdm(human_frames, desc=os.path.basename(source_path), leave=False)):
+        qpos[frame_idx] = retargeter.retarget(human_frame)
+
+    if robot == "bsrl":
+        qpos = RobotGrounder(robot).ground_qpos_sequence(qpos, ground_offset=ground_offset)
+
+    qpos[:, :2] -= qpos[0, :2]
+
+    world_body_pos, body_names = body_positions(retargeter.model, qpos)
+    root_pos = qpos[:, :3].astype(np.float32)
+    root_rot_xyzw = qpos[:, 3:7][:, [1, 2, 3, 0]].astype(np.float32)
+    dof_pos = qpos[:, 7:].astype(np.float32)
+
+    root_model = mj.MjModel.from_xml_path(retargeter.xml_file)
+    root_data = mj.MjData(root_model)
+    local_body_pos = np.empty_like(world_body_pos)
+    for frame_idx, frame_qpos in enumerate(qpos):
+        local_qpos = frame_qpos.copy()
+        local_qpos[:3] = 0.0
+        local_qpos[3:7] = (1.0, 0.0, 0.0, 0.0)
+        root_data.qpos[:] = local_qpos
+        mj.mj_forward(root_model, root_data)
+        local_body_pos[frame_idx] = root_data.xpos[1:]
+
+    key_body_names = ["link_right_ankle_roll", "link_left_ankle_roll"] if robot == "bsrl" else []
+    key_body_indices = [body_names.index(name) for name in key_body_names]
+    motion_data = {
+        "fps": float(motion_fps),
+        "root_pos": root_pos,
+        "root_rot": root_rot_xyzw,
+        "dof_pos": dof_pos,
+        "dof_names": joint_names_in_qpos_order(retargeter.model),
+        "local_body_pos": local_body_pos,
+        "link_body_list": body_names,
+        "key_body_pos": world_body_pos[:, key_body_indices],
+        "key_body_names": key_body_names,
+        "source_motion": os.path.basename(source_path),
+    }
+
+    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    with open(target_path, "wb") as output_file:
+        pickle.dump(motion_data, output_file)
+
+    print(f"[green]Saved {target_path}[/green] ({len(qpos)} frames, root z {root_pos[:, 2].min():.3f}..{root_pos[:, 2].max():.3f})")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Batch-retarget LAFAN1 BVH files to a robot.")
+    parser.add_argument("--src_folder", required=True, help="Folder containing BVH files.")
+    parser.add_argument("--tgt_folder", required=True, help="Folder for GMR pickle files.")
+    parser.add_argument("--robot", default="unitree_g1")
+    parser.add_argument("--override", action="store_true")
+    parser.add_argument("--motion_fps", default=30, type=int)
+    parser.add_argument("--ground_offset", default=0.0, type=float)
+    parser.add_argument(
+        "--include",
+        nargs="*",
+        default=["*.bvh"],
+        help="Optional filename patterns, for example: walk*.bvh run*.bvh.",
+    )
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
+
+    source_files = []
+    for dirpath, _, filenames in os.walk(args.src_folder):
+        source_files.extend(
+            os.path.join(dirpath, name)
+            for name in sorted(filenames)
+            if name.lower().endswith(".bvh") and any(fnmatch.fnmatch(name, pattern) for pattern in args.include)
+        )
+
+    if not source_files:
+        raise FileNotFoundError(f"No BVH files found in {args.src_folder}")
+
+    for source_path in source_files:
+        relative_path = os.path.relpath(source_path, args.src_folder)
+        target_path = os.path.join(args.tgt_folder, os.path.splitext(relative_path)[0] + ".pkl")
+        if os.path.exists(target_path) and not args.override:
+            print(f"Skipping existing file {target_path}")
+            continue
+        retarget_file(
+            source_path,
+            target_path,
+            args.robot,
+            args.motion_fps,
+            args.ground_offset,
+            args.verbose,
+        )
+
+    print(f"Done. Saved motions to {args.tgt_folder}")
 
 
 if __name__ == "__main__":
-    HERE = pathlib.Path(__file__).parent
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--src_folder",
-        help="Folder containing BVH motion files to load.",
-        required=True,
-        type=str,
-    )
-    
-    parser.add_argument(
-        "--tgt_folder",
-        help="Folder to save the retargeted motion files.",
-        default="../../motion_data/LAFAN1_g1_gmr"
-    )
-    
-    parser.add_argument(
-        "--robot",
-        default="unitree_g1",
-    )
-    
-    parser.add_argument(
-        "--override",
-        default=False,
-        action="store_true",
-    )
-    
-    parser.add_argument(
-        "--target_fps",
-        default=30,
-        type=int,
-    )
-
-    args = parser.parse_args()
-    
-    src_folder = args.src_folder
-    tgt_folder = args.tgt_folder
-
-   
-   
-        
-    # walk over all files in src_folder
-    for dirpath, _, filenames in os.walk(src_folder):
-        for filename in tqdm(sorted(filenames), desc="Retargeting files"):
-            if not filename.endswith(".bvh"):
-                continue
-                
-            # get the bvh file path
-            bvh_file_path = os.path.join(dirpath, filename)
-            
-            # get the target file path
-            tgt_file_path = bvh_file_path.replace(src_folder, tgt_folder).replace(".bvh", ".pkl")
-
-            if os.path.exists(tgt_file_path) and not args.override:
-                print(f"Skipping {bvh_file_path} because {tgt_file_path} exists")
-                continue
-            
-            # Load LAFAN1 trajectory
-            try:
-                lafan1_data_frames, actual_human_height = load_lafan1_file(bvh_file_path)
-                src_fps = 30  # LAFAN1 data is typically 30 FPS
-            except Exception as e:
-                print(f"Error loading {bvh_file_path}: {e}")
-                continue
-
-            
-            # Initialize the retargeting system
-            retarget = GMR(
-                src_human="bvh",
-                tgt_robot=args.robot,
-                actual_human_height=actual_human_height,
-            )
-            model = mj.MjModel.from_xml_path(retarget.xml_file)
-            data = mj.MjData(model)
-
-            
-
-            # retarget to get all qpos
-            qpos_list = []
-            for curr_frame in range(len(lafan1_data_frames)):
-                smplx_data = lafan1_data_frames[curr_frame]
-                
-                # Retarget till convergence
-                qpos = retarget.retarget(smplx_data)
-                
-                qpos_list.append(qpos.copy())
-            
-            qpos_list = np.array(qpos_list)
-
-            # Initialize the forward kinematics
-            device = "cuda:0"
-            kinematics_model = KinematicsModel(retarget.xml_file, device=device)
-            
-            root_pos = qpos_list[:, :3]
-            root_rot = qpos_list[:, 3:7]
-            root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
-            dof_pos = qpos_list[:, 7:]
-            num_frames = root_pos.shape[0]
-            
-            # obtain local body pos
-            identity_root_pos = torch.zeros((num_frames, 3), device=device)
-            identity_root_rot = torch.zeros((num_frames, 4), device=device)
-            identity_root_rot[:, -1] = 1.0
-            local_body_pos, _ = kinematics_model.forward_kinematics(
-                identity_root_pos, 
-                identity_root_rot, 
-                torch.from_numpy(dof_pos).to(device=device, dtype=torch.float)
-            )
-            body_names = kinematics_model.body_names
-
-            HEIGHT_ADJUST = False
-            PERFRAME_ADJUST = False
-            if HEIGHT_ADJUST:
-                body_pos, _ = kinematics_model.forward_kinematics(
-                    torch.from_numpy(root_pos).to(device=device, dtype=torch.float),
-                    torch.from_numpy(root_rot).to(device=device, dtype=torch.float),
-                    torch.from_numpy(dof_pos).to(device=device, dtype=torch.float)
-                )
-                ground_offset = 0.00
-                if not PERFRAME_ADJUST:
-                    lowest_height = torch.min(body_pos[..., 2]).item()
-                    root_pos[:, 2] = root_pos[:, 2] - lowest_height + ground_offset
-                else:
-                    for i in range(root_pos.shape[0]):
-                        lowest_body_part = torch.min(body_pos[i, :, 2])
-                        root_pos[i, 2] = root_pos[i, 2] - lowest_body_part + ground_offset
-
-            motion_data = {
-                "root_pos": root_pos,
-                "root_rot": root_rot,
-                "dof_pos": dof_pos,
-                "local_body_pos": local_body_pos.detach().cpu().numpy(),
-                "fps": src_fps,
-                "link_body_list": body_names,
-            }
-            
-
-            os.makedirs(os.path.dirname(tgt_file_path), exist_ok=True)
-            with open(tgt_file_path, "wb") as f:
-                pickle.dump(motion_data, f)
-
-    print("Done. saved to ", tgt_folder)
+    main()

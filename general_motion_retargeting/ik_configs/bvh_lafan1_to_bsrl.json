@@ -1,0 +1,91 @@
+{
+    "robot_root_name": "base_link",
+    "human_root_name": "Hips",
+    "ground_height": 0.0,
+    "human_height_assumption": 1.8,
+    "use_ik_match_table1": true,
+    "use_ik_match_table2": true,
+    "human_scale_table": {
+        "Hips": 0.9,
+        "LeftUpLeg": 0.9,
+        "RightUpLeg": 0.9,
+        "LeftLeg": 0.9,
+        "RightLeg": 0.9,
+        "LeftFootMod": 0.9,
+        "RightFootMod": 0.9
+    },
+    "ik_match_table1": {
+        "base_link": [
+            "Hips", 0, 10,
+            [0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5, 0.5]
+        ],
+        "link_left_hip_roll": [
+            "LeftUpLeg", 0, 10,
+            [0.0, 0.0, 0.0],
+            [-0.541758629051, 0.541758629051, 0.45442005661, -0.45442005661]
+        ],
+        "link_left_shank": [
+            "LeftLeg", 0, 10,
+            [0.0, 0.0, 0.0],
+            [-0.5, 0.5, 0.5, -0.5]
+        ],
+        "link_left_ankle_roll": [
+            "LeftFootMod", 50, 10,
+            [0.0, 0.0, 0.0],
+            [-0.707106781187, 0.707106781187, 0.0, 0.0]
+        ],
+        "link_right_hip_roll": [
+            "RightUpLeg", 0, 10,
+            [0.0, 0.0, 0.0],
+            [-0.541758629051, 0.541758629051, 0.45442005661, -0.45442005661]
+        ],
+        "link_right_shank": [
+            "RightLeg", 0, 10,
+            [0.0, 0.0, 0.0],
+            [-0.5, 0.5, 0.5, -0.5]
+        ],
+        "link_right_ankle_roll": [
+            "RightFootMod", 50, 10,
+            [0.0, 0.0, 0.0],
+            [-0.707106781187, 0.707106781187, 0.0, 0.0]
+        ]
+    },
+    "ik_match_table2": {
+        "base_link": [
+            "Hips", 100, 5,
+            [0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5, 0.5]
+        ],
+        "link_left_hip_roll": [
+            "LeftUpLeg", 10, 5,
+            [0.0, 0.0, 0.0],
+            [-0.541758629051, 0.541758629051, 0.45442005661, -0.45442005661]
+        ],
+        "link_left_shank": [
+            "LeftLeg", 10, 5,
+            [0.0, 0.0, 0.0],
+            [-0.5, 0.5, 0.5, -0.5]
+        ],
+        "link_left_ankle_roll": [
+            "LeftFootMod", 50, 10,
+            [0.0, 0.0, 0.0],
+            [-0.707106781187, 0.707106781187, 0.0, 0.0]
+        ],
+        "link_right_hip_roll": [
+            "RightUpLeg", 10, 5,
+            [0.0, 0.0, 0.0],
+            [-0.541758629051, 0.541758629051, 0.45442005661, -0.45442005661]
+        ],
+        "link_right_shank": [
+            "RightLeg", 10, 5,
+            [0.0, 0.0, 0.0],
+            [-0.5, 0.5, 0.5, -0.5]
+        ],
+        "link_right_ankle_roll": [
+            "RightFootMod", 50, 10,
+            [0.0, 0.0, 0.0],
+            [-0.707106781187, 0.707106781187, 0.0, 0.0]
+        ]
+    }
+}

@@ -12,6 +12,11 @@ if __name__ == "__main__":
     parser.add_argument("--record_video", action="store_true")
     parser.add_argument("--video_path", type=str, 
                         default="videos/example.mp4")
+    parser.add_argument(
+        "--camera_follow",
+        action="store_true",
+        help="Keep the camera centered on the moving robot.",
+    )
                         
     args = parser.parse_args()
     
@@ -25,16 +30,16 @@ if __name__ == "__main__":
     
     env = RobotMotionViewer(robot_type=robot_type,
                             motion_fps=motion_fps,
-                            camera_follow=False,
+                            camera_follow=args.camera_follow,
                             record_video=args.record_video, video_path=args.video_path)
     
     frame_idx = 0
-    while True:
-        env.step(motion_root_pos[frame_idx], 
-                motion_root_rot[frame_idx], 
-                motion_dof_pos[frame_idx], 
-                rate_limit=True)
-        frame_idx += 1
-        if frame_idx >= len(motion_root_pos):
-            frame_idx = 0
-    env.close()
+    try:
+        while env.viewer.is_running():
+            env.step(motion_root_pos[frame_idx],
+                    motion_root_rot[frame_idx],
+                    motion_dof_pos[frame_idx],
+                    rate_limit=True)
+            frame_idx = (frame_idx + 1) % len(motion_root_pos)
+    finally:
+        env.close()

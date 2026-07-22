@@ -14,6 +14,7 @@ import torch
 import pickle
 
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
+from general_motion_retargeting.grounding import RobotGrounder
 from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_data_offline_fast
 from general_motion_retargeting.kinematics_model import KinematicsModel
 from general_motion_retargeting import IK_CONFIG_ROOT
@@ -87,12 +88,11 @@ def process_file(smplx_file_path, tgt_file_path, tgt_robot, SMPLX_FOLDER, tgt_fo
         qpos_list.append(qpos.copy())
 
     qpos_list = np.array(qpos_list)
+    if tgt_robot == "bsrl":
+        qpos_list = RobotGrounder(tgt_robot).ground_qpos_sequence(qpos_list)
 
     log_memory("After retargeting")
     
-    device = "cuda:0"
-    kinematics_model = KinematicsModel(retargeter.xml_file, device=device)
-
     try:
         root_pos = qpos_list[:, :3]
     except Exception as e:
@@ -103,27 +103,39 @@ def process_file(smplx_file_path, tgt_file_path, tgt_robot, SMPLX_FOLDER, tgt_fo
     dof_pos = qpos_list[:, 7:]
     num_frames = root_pos.shape[0]
 
-    fk_root_pos = torch.zeros((num_frames, 3), device=device)
-    fk_root_rot = torch.zeros((num_frames, 4), device=device)
-    fk_root_rot[:, -1] = 1.0
+    local_body_pos = None
+    body_names = None
 
-    local_body_pos, _ = kinematics_model.forward_kinematics(
-        fk_root_pos, fk_root_rot, torch.from_numpy(dof_pos).to(device=device, dtype=torch.float)
-    )
+    # KinematicsModel currently supports the MuJoCo XML robots in this repo. For
+    # URDF-based robots such as BSRL we still save the core motion tuple that the
+    # downstream AMP pipeline consumes: root_pos/root_rot/dof_pos.
+    if str(retargeter.xml_file).endswith(".xml"):
+        device = "cuda:0"
+        kinematics_model = KinematicsModel(retargeter.xml_file, device=device)
 
-    log_memory("After forward kinematics")
+        fk_root_pos = torch.zeros((num_frames, 3), device=device)
+        fk_root_rot = torch.zeros((num_frames, 4), device=device)
+        fk_root_rot[:, -1] = 1.0
 
-    body_names = kinematics_model.body_names
-    
-    HEIGHT_ADJUST = True
-    if HEIGHT_ADJUST:
-        # height adjust to ensure the lowerset part is on the ground
-        body_pos, _ = kinematics_model.forward_kinematics(torch.from_numpy(root_pos).to(device=device, dtype=torch.float), 
-                                                        torch.from_numpy(root_rot).to(device=device, dtype=torch.float), 
-                                                        torch.from_numpy(dof_pos).to(device=device, dtype=torch.float)) # TxNx3
-        ground_offset = 0.0
-        lowerst_height = torch.min(body_pos[..., 2]).item()
-        root_pos[:, 2] = root_pos[:, 2] - lowerst_height + ground_offset # make sure motion on the ground
+        local_body_pos, _ = kinematics_model.forward_kinematics(
+            fk_root_pos, fk_root_rot, torch.from_numpy(dof_pos).to(device=device, dtype=torch.float)
+        )
+
+        log_memory("After forward kinematics")
+
+        body_names = kinematics_model.body_names
+
+        HEIGHT_ADJUST = True
+        if HEIGHT_ADJUST:
+            # height adjust to ensure the lowerset part is on the ground
+            body_pos, _ = kinematics_model.forward_kinematics(
+                torch.from_numpy(root_pos).to(device=device, dtype=torch.float),
+                torch.from_numpy(root_rot).to(device=device, dtype=torch.float),
+                torch.from_numpy(dof_pos).to(device=device, dtype=torch.float),
+            )  # TxNx3
+            ground_offset = 0.0
+            lowerst_height = torch.min(body_pos[..., 2]).item()
+            root_pos[:, 2] = root_pos[:, 2] - lowerst_height + ground_offset  # make sure motion on the ground
         
     ROOT_ORIGIN_OFFSET = True
     if ROOT_ORIGIN_OFFSET:
@@ -136,7 +148,7 @@ def process_file(smplx_file_path, tgt_file_path, tgt_robot, SMPLX_FOLDER, tgt_fo
         "root_pos": root_pos,
         "root_rot": root_rot,
         "dof_pos": dof_pos,
-        "local_body_pos": local_body_pos.detach().cpu().numpy(),
+        "local_body_pos": None if local_body_pos is None else local_body_pos.detach().cpu().numpy(),
         "link_body_list": body_names,
     }
 

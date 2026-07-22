@@ -4,6 +4,7 @@ import time
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import RobotMotionViewer
 from general_motion_retargeting.utils.lafan1 import load_bvh_file
+from general_motion_retargeting.grounding import RobotGrounder
 from rich import print
 from tqdm import tqdm
 import os
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     
     parser.add_argument(
         "--robot",
-        choices=["unitree_g1", "unitree_g1_with_hands", "booster_t1", "stanford_toddy", "fourier_n1", "engineai_pm01", "pal_talos"],
+        choices=["unitree_g1", "unitree_g1_with_hands", "booster_t1", "stanford_toddy", "fourier_n1", "engineai_pm01", "pal_talos", "bsrl"],
         default="unitree_g1",
     )
     
@@ -92,6 +93,7 @@ if __name__ == "__main__":
     )
 
     motion_fps = args.motion_fps
+    grounder = RobotGrounder(args.robot) if args.robot == "bsrl" else None
     
     robot_motion_viewer = RobotMotionViewer(robot_type=args.robot,
                                             motion_fps=motion_fps,
@@ -136,6 +138,9 @@ if __name__ == "__main__":
 
         # retarget
         qpos = retargeter.retarget(smplx_data)
+        raw_qpos = qpos.copy()
+        if grounder is not None:
+            qpos = grounder.ground_qpos(qpos)
         
 
         # visualize
@@ -149,6 +154,9 @@ if __name__ == "__main__":
             # human_pos_offset=np.array([0.0, 0.0, 0.0])
         )
 
+        if args.save_path is not None:
+            qpos_list.append(raw_qpos)
+
         if args.loop:
             i = (i + 1) % len(lafan1_data_frames)
         else:
@@ -157,15 +165,15 @@ if __name__ == "__main__":
                 break
    
         
-        if args.save_path is not None:
-            qpos_list.append(qpos)
-    
     if args.save_path is not None:
         import pickle
-        root_pos = np.array([qpos[:3] for qpos in qpos_list])
+        qpos_array = np.asarray(qpos_list)
+        if grounder is not None:
+            qpos_array = grounder.ground_qpos_sequence(qpos_array)
+        root_pos = qpos_array[:, :3]
         # save from wxyz to xyzw
-        root_rot = np.array([qpos[3:7][[1,2,3,0]] for qpos in qpos_list])
-        dof_pos = np.array([qpos[7:] for qpos in qpos_list])
+        root_rot = qpos_array[:, 3:7][:, [1, 2, 3, 0]]
+        dof_pos = qpos_array[:, 7:]
         local_body_pos = None
         body_names = None
         
