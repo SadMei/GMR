@@ -88,7 +88,7 @@ if __name__ == "__main__":
                                             motion_fps=aligned_fps,
                                             transparent_robot=0,
                                             record_video=args.record_video,
-                                            video_path=f"videos/{args.robot}_{args.gvhmr_pred_file.split('/')[-1].split('.')[0]}.mp4",)
+                                            video_path=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / f"{args.robot}_{args.gvhmr_pred_file.split('/')[-1].split('.')[0]}.mp4"),)
     
 
     curr_frame = 0

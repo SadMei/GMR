@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<robot name="export_floating">
-  <mujoco>
-    <compiler meshdir="../meshes/" discardvisual="false" />
-  </mujoco>
-  <link name="world" />
-  <joint name="base_freejoint" type="floating">
-    <origin xyz="0 0 0.881216" rpy="0 0 0" />
-    <parent link="world" />
-    <child link="base_link" />
-  </joint>
+<robot name="export">
   <!--
     Mass and inertia values are mapped from final_v1_urdf.urdf.
     Inertial origins are expressed in this URDF's original link frames after
@@ -62,8 +53,8 @@
     <origin xyz="0 -0.13999 0.0538" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="link_right_hip_yaw" />
-    <axis xyz="0 0 -1" />
-    <limit lower="-0.6" upper="0.4" effort="1000" velocity="10" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.4" upper="0.6" effort="1000" velocity="10" />
   </joint>
   <link name="link_right_hip_roll">
     <inertial>
@@ -149,8 +140,8 @@
     <origin xyz="0 0.0254 -0.3852" rpy="0 0 0" />
     <parent link="link_right_thigh" />
     <child link="link_right_shank" />
-    <axis xyz="0 -1 0" />
-    <limit lower="-2.2" upper="0" effort="1000" velocity="10" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.2" effort="1000" velocity="10" />
   </joint>
   <link name="link_right_ankle_pitch">
     <inertial>
@@ -259,7 +250,7 @@
     <origin xyz="-0.103 -0.000499999999957 -0.1108" rpy="0 0 0" />
     <parent link="link_left_hip_yaw" />
     <child link="link_left_hip_roll" />
-    <axis xyz="-1 0 0" />
+    <axis xyz="1 0 0" />
     <limit lower="-0.15" upper="0.15" effort="1000" velocity="10" />
   </joint>
   <link name="link_left_thigh">
@@ -317,8 +308,8 @@
     <origin xyz="0 -0.0144 -0.3852" rpy="0 0 0" />
     <parent link="link_left_thigh" />
     <child link="link_left_shank" />
-    <axis xyz="0 -1 0" />
-    <limit lower="-2.2" upper="0" effort="1000" velocity="10" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.2" effort="1000" velocity="10" />
   </joint>
   <link name="link_left_ankle_pitch">
     <inertial>

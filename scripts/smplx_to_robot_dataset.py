@@ -15,6 +15,16 @@ import pickle
 
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting.grounding import RobotGrounder
+from general_motion_retargeting.params import (
+    BSRL_GROUNDING_CONVENTION,
+    BSRL_JOINT_COORDINATE_CONVENTION,
+    BSRL_KEY_BODY_NAMES,
+)
+from general_motion_retargeting.utils.mujoco_model import (
+    body_positions,
+    joint_names_in_qpos_order,
+    local_body_positions,
+)
 from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_data_offline_fast
 from general_motion_retargeting.kinematics_model import KinematicsModel
 from general_motion_retargeting import IK_CONFIG_ROOT
@@ -89,26 +99,24 @@ def process_file(smplx_file_path, tgt_file_path, tgt_robot, SMPLX_FOLDER, tgt_fo
 
     qpos_list = np.array(qpos_list)
     if tgt_robot == "bsrl":
-        qpos_list = RobotGrounder(tgt_robot).ground_qpos_sequence(qpos_list)
+        qpos_list = RobotGrounder(tgt_robot).ground_qpos_sequence(qpos_list, per_frame=True)
 
     log_memory("After retargeting")
     
     try:
-        root_pos = qpos_list[:, :3]
+        root_pos = qpos_list[:, :3].copy()
     except Exception as e:
         print(f"Error processing {smplx_file_path}: {e}")
         return
-    root_rot = qpos_list[:, 3:7]
-    root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
-    dof_pos = qpos_list[:, 7:]
+    root_rot = qpos_list[:, 3:7][:, [1, 2, 3, 0]].copy()
+    dof_pos = qpos_list[:, 7:].copy()
     num_frames = root_pos.shape[0]
 
     local_body_pos = None
     body_names = None
 
-    # KinematicsModel currently supports the MuJoCo XML robots in this repo. For
-    # URDF-based robots such as BSRL we still save the core motion tuple that the
-    # downstream AMP pipeline consumes: root_pos/root_rot/dof_pos.
+    # Keep the existing torch FK path for native MJCF robots. BSRL uses MuJoCo's
+    # URDF model below so its exported body order matches the retargeter exactly.
     if str(retargeter.xml_file).endswith(".xml"):
         device = "cuda:0"
         kinematics_model = KinematicsModel(retargeter.xml_file, device=device)
@@ -141,16 +149,43 @@ def process_file(smplx_file_path, tgt_file_path, tgt_robot, SMPLX_FOLDER, tgt_fo
     if ROOT_ORIGIN_OFFSET:
         # offset using the first frame
         root_pos[:, :2] -= root_pos[0, :2]
+
+    key_body_pos = None
+    key_body_names = None
+    if tgt_robot == "bsrl":
+        qpos_for_fk = qpos_list.copy()
+        qpos_for_fk[:, :3] = root_pos
+        key_body_world_pos, body_names = body_positions(retargeter.model, qpos_for_fk)
+        local_body_pos, local_body_names = local_body_positions(retargeter.model, qpos_for_fk)
+        if local_body_names != body_names:
+            raise RuntimeError("World and local body orders differ")
+        key_body_names = list(BSRL_KEY_BODY_NAMES)
+        key_body_indices = [body_names.index(name) for name in key_body_names]
+        key_body_pos = key_body_world_pos[:, key_body_indices]
         
         
+    if isinstance(local_body_pos, np.ndarray):
+        local_body_pos_output = local_body_pos
+    elif local_body_pos is None:
+        local_body_pos_output = None
+    else:
+        local_body_pos_output = local_body_pos.detach().cpu().numpy()
+
     motion_data = {
         "fps": aligned_fps,
         "root_pos": root_pos,
         "root_rot": root_rot,
         "dof_pos": dof_pos,
-        "local_body_pos": None if local_body_pos is None else local_body_pos.detach().cpu().numpy(),
+        "local_body_pos": local_body_pos_output,
         "link_body_list": body_names,
+        "dof_names": joint_names_in_qpos_order(retargeter.model),
+        "source_motion": os.path.basename(smplx_file_path),
     }
+    if tgt_robot == "bsrl":
+        motion_data["joint_coordinate_convention"] = BSRL_JOINT_COORDINATE_CONVENTION
+        motion_data["grounding_convention"] = BSRL_GROUNDING_CONVENTION
+        motion_data["key_body_pos"] = key_body_pos
+        motion_data["key_body_names"] = key_body_names
 
 
     os.makedirs(os.path.dirname(tgt_file_path), exist_ok=True)

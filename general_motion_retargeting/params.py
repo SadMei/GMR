@@ -4,6 +4,12 @@ HERE = pathlib.Path(__file__).parent
 IK_CONFIG_ROOT = HERE / "ik_configs"
 ASSET_ROOT = HERE / ".." / "assets"
 
+# Coordinate convention stored in BSRL motion files. All joint frames use
+# X-forward, Y-left, Z-up; yaw/roll/pitch axes are +Z/+X/+Y respectively.
+BSRL_JOINT_COORDINATE_CONVENTION = "bsrl_xyz_positive_v1"
+BSRL_GROUNDING_CONVENTION = "bsrl_per_frame_collision_v1"
+BSRL_KEY_BODY_NAMES = ("link_right_ankle_roll", "link_left_ankle_roll")
+
 ROBOT_XML_DICT = {
     "unitree_g1": ASSET_ROOT / "unitree_g1" / "g1_mocap_29dof.xml",
     "unitree_g1_with_hands": ASSET_ROOT / "unitree_g1" / "g1_mocap_29dof_with_hands.xml",
@@ -23,14 +29,14 @@ ROBOT_XML_DICT = {
     "tienkung": ASSET_ROOT / "tienkung" / "mjcf" / "tienkung.xml",
     "pal_talos": ASSET_ROOT / "pal_talos" / "talos.xml",
     "fourier_gr3": ASSET_ROOT / "fourier_gr3v2_1_1" / "mjcf" / "gr3v2_1_1_dummy_hand.xml",
-    "bsrl": ASSET_ROOT / "bsrl" / "urdf" / "export_floating.urdf",
+    "bsrl": ASSET_ROOT / "BSRL_urdf" / "urdf" / "export_floating.urdf",
 }
 
 # Some robots may need a dedicated MuJoCo scene for clean rendering while the
 # retargeter still uses the raw floating-base kinematic model above.
 ROBOT_VIEWER_XML_DICT = {
     **ROBOT_XML_DICT,
-    "bsrl": ASSET_ROOT / "bsrl" / "bsrl_scene.xml",
+    "bsrl": ASSET_ROOT / "bsrl_scene.xml",
 }
 
 # Extra local-frame rotation applied to root orientation for viewer-only models,

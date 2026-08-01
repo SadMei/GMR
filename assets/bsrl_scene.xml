@@ -1,5 +1,5 @@
 <mujoco model="bsrl_scene">
-  <compiler angle="radian" meshdir="meshes/" />
+  <compiler angle="radian" meshdir="BSRL_urdf/meshes/" />
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0.9 0.9 0.9" />
     <rgba haze="0.15 0.25 0.35 1" />
@@ -33,7 +33,7 @@
       <geom group="3" size="0.04 0.05 0.025" pos="0 0 -0.05" type="box" rgba="0.65098 0.61961 0.58824 1" />
       <body name="link_right_hip_yaw" pos="0 -0.13999 0.0538">
         <inertial pos="-0.093082 0.000430 -0.105932" mass="1.725554" diaginertia="0.001144 0.001553 0.001112" />
-        <joint name="joint_right_hip_yaw" pos="0 0 0" axis="0 0 -1" range="-0.6 0.4" actuatorfrcrange="-1000 1000" />
+        <joint name="joint_right_hip_yaw" pos="0 0 0" axis="0 0 1" range="-0.4 0.6" actuatorfrcrange="-1000 1000" />
         <geom pos="0 0 0" quat="0 0 1 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.898039 0.917647 0.929412 1" mesh="link_right_hip_yaw" />
         <geom group="3" size="0.05" pos="-0.12 0 -0.1" quat="0 0 1 0" rgba="0.898039 0.917647 0.929412 1" />
         <body name="link_right_hip_roll" pos="-0.103 0.0005 -0.1108">
@@ -48,7 +48,7 @@
             <geom group="3" size="0.045 0.1" pos="0 0 -0.2" quat="0 0.707107 -0.707107 0" type="cylinder" rgba="0.792157 0.819608 0.933333 1" />
             <body name="link_right_shank" pos="0 0.0254 -0.3852">
               <inertial pos="-0.012308 -0.000267 -0.145431" mass="2.492287" diaginertia="0.018141 0.019324 0.001880" />
-              <joint name="joint_right_knee_pitch" pos="0 0 0" axis="0 -1 0" range="-2.2 0" actuatorfrcrange="-1000 1000" />
+              <joint name="joint_right_knee_pitch" pos="0 0 0" axis="0 1 0" range="0 2.2" actuatorfrcrange="-1000 1000" />
               <geom pos="0 0 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="1 1 1 1" mesh="link_right_shank" />
               <geom group="3" size="0.025 0.1" pos="0 0 -0.1" quat="0 1 0 0" type="cylinder" rgba="1 1 1 1" />
               <body name="link_right_ankle_pitch" pos="0 0 -0.355">
@@ -73,7 +73,7 @@
         <geom group="3" size="0.05" pos="-0.12 0 -0.1" quat="0 0 1 0" rgba="1 1 1 1" />
         <body name="link_left_hip_roll" pos="-0.103 -0.0005 -0.1108">
           <inertial pos="0.101963 0.006668 -0.000078" mass="1.620465" diaginertia="0.000510 0.000919 0.000797" />
-          <joint name="joint_left_hip_roll" pos="0 0 0" axis="-1 0 0" range="-0.15 0.15" actuatorfrcrange="-1000 1000" />
+          <joint name="joint_left_hip_roll" pos="0 0 0" axis="1 0 0" range="-0.15 0.15" actuatorfrcrange="-1000 1000" />
           <geom pos="0 0 0" quat="0.707107 0 0.707107 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="1 1 1 1" mesh="link_left_hip_roll" />
           <geom group="3" size="0.05" pos="0.1 0 0" quat="0.707107 0 0.707107 0" rgba="1 1 1 1" />
           <body name="link_left_thigh" pos="0.105 0 0">
@@ -83,7 +83,7 @@
             <geom group="3" size="0.045 0.1" pos="0 0 -0.2" quat="0 0.707107 -0.707107 0" type="cylinder" rgba="0.792157 0.819608 0.933333 1" />
             <body name="link_left_shank" pos="0 -0.0144 -0.3852">
               <inertial pos="-0.012308 0.000266 -0.145431" mass="2.492309" diaginertia="0.018141 0.019324 0.001880" />
-              <joint name="joint_left_knee_pitch" pos="0 0 0" axis="0 -1 0" range="-2.2 0" actuatorfrcrange="-1000 1000" />
+              <joint name="joint_left_knee_pitch" pos="0 0 0" axis="0 1 0" range="0 2.2" actuatorfrcrange="-1000 1000" />
               <geom pos="0 0 0" quat="0.5 -0.5 0.5 0.5" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.792157 0.819608 0.933333 1" mesh="link_left_shank" />
               <geom group="3" size="0.025 0.1" pos="0 0 -0.1" quat="0 0.707107 -0.707107 0" type="cylinder" rgba="0.792157 0.819608 0.933333 1" />
               <body name="link_left_ankle_pitch" pos="0 0 -0.3549">

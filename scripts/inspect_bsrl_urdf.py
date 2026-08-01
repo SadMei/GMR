@@ -43,7 +43,7 @@ def main():
     parser.add_argument(
         "--urdf",
         type=str,
-        default="assets/bsrl/urdf/export_floating.urdf",
+        default="assets/BSRL_urdf/urdf/export_floating.urdf",
         help="URDF file to inspect.",
     )
     parser.add_argument(

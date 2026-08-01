@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video_path",
         type=str,
-        default="videos/example.mp4",
+        default=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / "example.mp4"),
     )
 
     parser.add_argument(

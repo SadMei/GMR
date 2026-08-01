@@ -3,34 +3,23 @@ import fnmatch
 import os
 import pickle
 
-import mujoco as mj
 import numpy as np
 from rich import print
 from tqdm import tqdm
 
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting.grounding import RobotGrounder
+from general_motion_retargeting.params import (
+    BSRL_GROUNDING_CONVENTION,
+    BSRL_JOINT_COORDINATE_CONVENTION,
+    BSRL_KEY_BODY_NAMES,
+)
 from general_motion_retargeting.utils.lafan1 import load_bvh_file
-
-
-def joint_names_in_qpos_order(model):
-    joints = []
-    for joint_id in range(model.njnt):
-        if model.jnt_type[joint_id] == mj.mjtJoint.mjJNT_FREE:
-            continue
-        joints.append((int(model.jnt_qposadr[joint_id]), mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, joint_id)))
-    return [name for _, name in sorted(joints)]
-
-
-def body_positions(model, qpos_sequence):
-    data = mj.MjData(model)
-    body_names = [mj.mj_id2name(model, mj.mjtObj.mjOBJ_BODY, body_id) for body_id in range(1, model.nbody)]
-    positions = np.empty((len(qpos_sequence), len(body_names), 3), dtype=np.float32)
-    for frame_idx, qpos in enumerate(qpos_sequence):
-        data.qpos[:] = qpos
-        mj.mj_forward(model, data)
-        positions[frame_idx] = data.xpos[1:]
-    return positions, body_names
+from general_motion_retargeting.utils.mujoco_model import (
+    body_positions,
+    joint_names_in_qpos_order,
+    local_body_positions,
+)
 
 
 def retarget_file(source_path, target_path, robot, motion_fps, ground_offset, verbose):
@@ -47,7 +36,11 @@ def retarget_file(source_path, target_path, robot, motion_fps, ground_offset, ve
         qpos[frame_idx] = retargeter.retarget(human_frame)
 
     if robot == "bsrl":
-        qpos = RobotGrounder(robot).ground_qpos_sequence(qpos, ground_offset=ground_offset)
+        qpos = RobotGrounder(robot).ground_qpos_sequence(
+            qpos,
+            ground_offset=ground_offset,
+            per_frame=True,
+        )
 
     qpos[:, :2] -= qpos[0, :2]
 
@@ -56,18 +49,11 @@ def retarget_file(source_path, target_path, robot, motion_fps, ground_offset, ve
     root_rot_xyzw = qpos[:, 3:7][:, [1, 2, 3, 0]].astype(np.float32)
     dof_pos = qpos[:, 7:].astype(np.float32)
 
-    root_model = mj.MjModel.from_xml_path(retargeter.xml_file)
-    root_data = mj.MjData(root_model)
-    local_body_pos = np.empty_like(world_body_pos)
-    for frame_idx, frame_qpos in enumerate(qpos):
-        local_qpos = frame_qpos.copy()
-        local_qpos[:3] = 0.0
-        local_qpos[3:7] = (1.0, 0.0, 0.0, 0.0)
-        root_data.qpos[:] = local_qpos
-        mj.mj_forward(root_model, root_data)
-        local_body_pos[frame_idx] = root_data.xpos[1:]
+    local_body_pos, local_body_names = local_body_positions(retargeter.model, qpos)
+    if local_body_names != body_names:
+        raise RuntimeError("World and local body orders differ")
 
-    key_body_names = ["link_right_ankle_roll", "link_left_ankle_roll"] if robot == "bsrl" else []
+    key_body_names = list(BSRL_KEY_BODY_NAMES) if robot == "bsrl" else []
     key_body_indices = [body_names.index(name) for name in key_body_names]
     motion_data = {
         "fps": float(motion_fps),
@@ -81,6 +67,9 @@ def retarget_file(source_path, target_path, robot, motion_fps, ground_offset, ve
         "key_body_names": key_body_names,
         "source_motion": os.path.basename(source_path),
     }
+    if robot == "bsrl":
+        motion_data["joint_coordinate_convention"] = BSRL_JOINT_COORDINATE_CONVENTION
+        motion_data["grounding_convention"] = BSRL_GROUNDING_CONVENTION
 
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     with open(target_path, "wb") as output_file:

@@ -1,6 +1,7 @@
 from general_motion_retargeting import RobotMotionViewer, load_robot_motion
 import argparse
 import os
+import pathlib
 from tqdm import tqdm
 
 if __name__ == "__main__":
@@ -11,7 +12,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--record_video", action="store_true")
     parser.add_argument("--video_path", type=str, 
-                        default="videos/example.mp4")
+                        default=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / "example.mp4"))
     parser.add_argument(
         "--camera_follow",
         action="store_true",

@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video_path",
         type=str,
-        default="videos/optitrack_example.mp4",
+        default=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / "optitrack_example.mp4"),
     )
 
     parser.add_argument(
@@ -180,4 +180,4 @@ if __name__ == "__main__":
     # Close progress bar
     pbar.close()
     
-    robot_motion_viewer.close() 
+    robot_motion_viewer.close()

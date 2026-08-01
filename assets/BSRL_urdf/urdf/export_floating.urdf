@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<robot name="export">
+<robot name="export_floating">
+  <mujoco>
+    <compiler meshdir="../meshes/" discardvisual="false" />
+  </mujoco>
+  <link name="world" />
+  <joint name="base_freejoint" type="floating">
+    <origin xyz="0 0 0.881216" rpy="0 0 0" />
+    <parent link="world" />
+    <child link="base_link" />
+  </joint>
   <!--
     Mass and inertia values are mapped from final_v1_urdf.urdf.
     Inertial origins are expressed in this URDF's original link frames after
@@ -14,7 +23,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="meshes/base_waist.obj" />
+        <mesh filename="../meshes/base_waist.obj" />
       </geometry>
       <material name="">
         <color rgba="0.65098 0.61961 0.58824 1" />
@@ -36,7 +45,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="3.14159265359 0 3.14159265359" />
       <geometry>
-        <mesh filename="meshes/link_right_hip_yaw.obj" />
+        <mesh filename="../meshes/link_right_hip_yaw.obj" />
       </geometry>
       <material name="">
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -53,8 +62,8 @@
     <origin xyz="0 -0.13999 0.0538" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="link_right_hip_yaw" />
-    <axis xyz="0 0 -1" />
-    <limit lower="-0.6" upper="0.4" effort="1000" velocity="10" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.4" upper="0.6" effort="1000" velocity="10" />
   </joint>
   <link name="link_right_hip_roll">
     <inertial>
@@ -65,7 +74,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_right_hip_roll.obj" />
+        <mesh filename="../meshes/link_right_hip_roll.obj" />
       </geometry>
       <material name="">
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -94,7 +103,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_right_thigh.obj" />
+        <mesh filename="../meshes/link_right_thigh.obj" />
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
@@ -123,7 +132,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 0 0" />
       <geometry>
-        <mesh filename="meshes/link_right_shank.obj" />
+        <mesh filename="../meshes/link_right_shank.obj" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -140,8 +149,8 @@
     <origin xyz="0 0.0254 -0.3852" rpy="0 0 0" />
     <parent link="link_right_thigh" />
     <child link="link_right_shank" />
-    <axis xyz="0 -1 0" />
-    <limit lower="-2.2" upper="0" effort="1000" velocity="10" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.2" effort="1000" velocity="10" />
   </joint>
   <link name="link_right_ankle_pitch">
     <inertial>
@@ -152,7 +161,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 -1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_right_ankle_pitch.obj" />
+        <mesh filename="../meshes/link_right_ankle_pitch.obj" />
       </geometry>
       <material name="">
         <color rgba="0.776470588235294 0.756862745098039 0.737254901960784 1" />
@@ -175,7 +184,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_right_ankle_roll.obj" />
+        <mesh filename="../meshes/link_right_ankle_roll.obj" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -204,7 +213,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="3.14159265359 0 3.14159265359" />
       <geometry>
-        <mesh filename="meshes/link_left_hip_yaw.obj" />
+        <mesh filename="../meshes/link_left_hip_yaw.obj" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -233,7 +242,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_left_hip_roll.obj" />
+        <mesh filename="../meshes/link_left_hip_roll.obj" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -250,7 +259,7 @@
     <origin xyz="-0.103 -0.000499999999957 -0.1108" rpy="0 0 0" />
     <parent link="link_left_hip_yaw" />
     <child link="link_left_hip_roll" />
-    <axis xyz="-1 0 0" />
+    <axis xyz="1 0 0" />
     <limit lower="-0.15" upper="0.15" effort="1000" velocity="10" />
   </joint>
   <link name="link_left_thigh">
@@ -262,7 +271,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_left_thigh.obj" />
+        <mesh filename="../meshes/link_left_thigh.obj" />
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
@@ -291,7 +300,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_left_shank.obj" />
+        <mesh filename="../meshes/link_left_shank.obj" />
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
@@ -308,8 +317,8 @@
     <origin xyz="0 -0.0144 -0.3852" rpy="0 0 0" />
     <parent link="link_left_thigh" />
     <child link="link_left_shank" />
-    <axis xyz="0 -1 0" />
-    <limit lower="-2.2" upper="0" effort="1000" velocity="10" />
+    <axis xyz="0 1 0" />
+    <limit lower="0" upper="2.2" effort="1000" velocity="10" />
   </joint>
   <link name="link_left_ankle_pitch">
     <inertial>
@@ -320,7 +329,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="-1.57079632679 -1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_left_ankle_pitch.obj" />
+        <mesh filename="../meshes/link_left_ankle_pitch.obj" />
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
@@ -343,7 +352,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="meshes/link_left_ankle_roll.obj" />
+        <mesh filename="../meshes/link_left_ankle_roll.obj" />
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />

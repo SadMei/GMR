@@ -6,6 +6,7 @@ Real-time motion capture retargeting following bvh_xsens_to_robot.py format.
 
 import argparse
 import os
+import pathlib
 import signal
 import sys
 import time
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video_path",
         type=str,
-        default="videos/xsens_live.mp4",
+        default=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / "xsens_live.mp4"),
     )
 
     parser.add_argument(

@@ -3,7 +3,17 @@ import pathlib
 import time
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import RobotMotionViewer
+from general_motion_retargeting.params import (
+    BSRL_GROUNDING_CONVENTION,
+    BSRL_JOINT_COORDINATE_CONVENTION,
+    BSRL_KEY_BODY_NAMES,
+)
 from general_motion_retargeting.utils.lafan1 import load_bvh_file
+from general_motion_retargeting.utils.mujoco_model import (
+    body_positions,
+    joint_names_in_qpos_order,
+    local_body_positions,
+)
 from general_motion_retargeting.grounding import RobotGrounder
 from rich import print
 from tqdm import tqdm
@@ -51,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video_path",
         type=str,
-        default="videos/example.mp4",
+        default=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / "example.mp4"),
     )
 
     parser.add_argument(
@@ -71,8 +81,18 @@ if __name__ == "__main__":
         default=30,
         type=int,
     )
+
+    parser.add_argument(
+        "--max_frames",
+        default=None,
+        type=int,
+        help="Stop after this many frames. By default, process the full motion.",
+    )
     
     args = parser.parse_args()
+
+    if args.loop and args.save_path is not None:
+        parser.error("--loop cannot be combined with --save_path")
     
     if args.save_path is not None:
         save_dir = os.path.dirname(args.save_path)
@@ -112,14 +132,17 @@ if __name__ == "__main__":
     print(f"mocap_frame_rate: {motion_fps}")
     
     # Create tqdm progress bar for the total number of frames
-    pbar = tqdm(total=len(lafan1_data_frames), desc="Retargeting")
+    frame_count = len(lafan1_data_frames)
+    if args.max_frames is not None:
+        frame_count = min(frame_count, max(args.max_frames, 0))
+    pbar = tqdm(total=frame_count, desc="Retargeting")
     
     # Start the viewer
     i = 0
     
 
 
-    while True:
+    while i < frame_count:
         
         # FPS measurement
         fps_counter += 1
@@ -138,7 +161,6 @@ if __name__ == "__main__":
 
         # retarget
         qpos = retargeter.retarget(smplx_data)
-        raw_qpos = qpos.copy()
         if grounder is not None:
             qpos = grounder.ground_qpos(qpos)
         
@@ -155,27 +177,28 @@ if __name__ == "__main__":
         )
 
         if args.save_path is not None:
-            qpos_list.append(raw_qpos)
+            # Save the exact grounded pose shown by the online viewer.
+            qpos_list.append(qpos.copy())
 
-        if args.loop:
-            i = (i + 1) % len(lafan1_data_frames)
-        else:
-            i += 1
-            if i >= len(lafan1_data_frames):
-                break
+        i += 1
+        if args.loop and i >= frame_count:
+            i = 0
    
         
     if args.save_path is not None:
         import pickle
         qpos_array = np.asarray(qpos_list)
-        if grounder is not None:
-            qpos_array = grounder.ground_qpos_sequence(qpos_array)
         root_pos = qpos_array[:, :3]
         # save from wxyz to xyzw
         root_rot = qpos_array[:, 3:7][:, [1, 2, 3, 0]]
         dof_pos = qpos_array[:, 7:]
-        local_body_pos = None
-        body_names = None
+        world_body_pos, body_names = body_positions(retargeter.model, qpos_array)
+        local_body_pos, local_body_names = local_body_positions(retargeter.model, qpos_array)
+        if local_body_names != body_names:
+            raise RuntimeError("World and local body orders differ")
+
+        key_body_names = list(BSRL_KEY_BODY_NAMES) if args.robot == "bsrl" else []
+        key_body_indices = [body_names.index(name) for name in key_body_names]
         
         motion_data = {
             "fps": motion_fps,
@@ -184,7 +207,14 @@ if __name__ == "__main__":
             "dof_pos": dof_pos,
             "local_body_pos": local_body_pos,
             "link_body_list": body_names,
+            "dof_names": joint_names_in_qpos_order(retargeter.model),
+            "key_body_pos": world_body_pos[:, key_body_indices],
+            "key_body_names": key_body_names,
+            "source_motion": os.path.basename(args.bvh_file),
         }
+        if args.robot == "bsrl":
+            motion_data["joint_coordinate_convention"] = BSRL_JOINT_COORDINATE_CONVENTION
+            motion_data["grounding_convention"] = BSRL_GROUNDING_CONVENTION
         with open(args.save_path, "wb") as f:
             pickle.dump(motion_data, f)
         print(f"Saved to {args.save_path}")

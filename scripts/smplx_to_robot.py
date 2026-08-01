@@ -8,6 +8,16 @@ import numpy as np
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import RobotMotionViewer
 from general_motion_retargeting.grounding import RobotGrounder
+from general_motion_retargeting.params import (
+    BSRL_GROUNDING_CONVENTION,
+    BSRL_JOINT_COORDINATE_CONVENTION,
+    BSRL_KEY_BODY_NAMES,
+)
+from general_motion_retargeting.utils.mujoco_model import (
+    body_positions,
+    joint_names_in_qpos_order,
+    local_body_positions,
+)
 from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_data_offline_fast
 
 from rich import print
@@ -67,6 +77,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.loop and args.save_path is not None:
+        parser.error("--loop cannot be combined with --save_path")
+
 
     SMPLX_FOLDER = HERE / ".." / "assets" / "body_models"
     
@@ -92,7 +105,7 @@ if __name__ == "__main__":
                                             motion_fps=aligned_fps,
                                             transparent_robot=0,
                                             record_video=args.record_video,
-                                            video_path=f"videos/{args.robot}_{args.smplx_file.split('/')[-1].split('.')[0]}.mp4",)
+                                            video_path=str(pathlib.Path(__file__).resolve().parents[1] / "videos" / f"{args.robot}_{args.smplx_file.split('/')[-1].split('.')[0]}.mp4"),)
     robot_grounder = RobotGrounder(args.robot) if args.robot == "bsrl" else None
     
 
@@ -111,14 +124,7 @@ if __name__ == "__main__":
     # Start the viewer
     i = 0
 
-    while True:
-        if args.loop:
-            i = (i + 1) % len(smplx_data_frames)
-        else:
-            i += 1
-            if i >= len(smplx_data_frames):
-                break
-        
+    while i < len(smplx_data_frames):
         # FPS measurement
         fps_counter += 1
         current_time = time.time()
@@ -133,7 +139,6 @@ if __name__ == "__main__":
 
         # retarget
         qpos = retarget.retarget(smplx_data)
-        raw_qpos = qpos.copy()
         if robot_grounder is not None:
             qpos = robot_grounder.ground_qpos(qpos)
 
@@ -150,19 +155,26 @@ if __name__ == "__main__":
             follow_camera=False,
         )
         if args.save_path is not None:
-            qpos_list.append(raw_qpos)
+            qpos_list.append(qpos.copy())
+
+        i += 1
+        if args.loop and i >= len(smplx_data_frames):
+            i = 0
             
     if args.save_path is not None:
         import pickle
         qpos_array = np.array(qpos_list)
-        if robot_grounder is not None:
-            qpos_array = robot_grounder.ground_qpos_sequence(qpos_array)
-        root_pos = np.array([qpos[:3] for qpos in qpos_array])
+        root_pos = qpos_array[:, :3]
         # save from wxyz to xyzw
-        root_rot = np.array([qpos[3:7][[1,2,3,0]] for qpos in qpos_array])
-        dof_pos = np.array([qpos[7:] for qpos in qpos_array])
-        local_body_pos = None
-        body_names = None
+        root_rot = qpos_array[:, 3:7][:, [1, 2, 3, 0]]
+        dof_pos = qpos_array[:, 7:]
+        world_body_pos, body_names = body_positions(retarget.model, qpos_array)
+        local_body_pos, local_body_names = local_body_positions(retarget.model, qpos_array)
+        if local_body_names != body_names:
+            raise RuntimeError("World and local body orders differ")
+
+        key_body_names = list(BSRL_KEY_BODY_NAMES) if args.robot == "bsrl" else []
+        key_body_indices = [body_names.index(name) for name in key_body_names]
         
         motion_data = {
             "fps": aligned_fps,
@@ -171,7 +183,14 @@ if __name__ == "__main__":
             "dof_pos": dof_pos,
             "local_body_pos": local_body_pos,
             "link_body_list": body_names,
+            "dof_names": joint_names_in_qpos_order(retarget.model),
+            "key_body_pos": world_body_pos[:, key_body_indices],
+            "key_body_names": key_body_names,
+            "source_motion": os.path.basename(args.smplx_file),
         }
+        if args.robot == "bsrl":
+            motion_data["joint_coordinate_convention"] = BSRL_JOINT_COORDINATE_CONVENTION
+            motion_data["grounding_convention"] = BSRL_GROUNDING_CONVENTION
         with open(args.save_path, "wb") as f:
             pickle.dump(motion_data, f)
         print(f"Saved to {args.save_path}")
