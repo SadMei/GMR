@@ -14,6 +14,36 @@
         "LeftFootMod": 0.9,
         "RightFootMod": 0.9
     },
+    "posture_regularization": {
+        "default_cost": 0.1,
+        "lm_damping": 0.001,
+        "joint_costs": {
+            "joint_right_hip_yaw": 10.0,
+            "joint_right_hip_roll": 10.0,
+            "joint_left_hip_yaw": 10.0,
+            "joint_left_hip_roll": 10.0
+        },
+        "joint_targets": {
+            "joint_right_hip_yaw": 0.0,
+            "joint_right_hip_roll": 0.0,
+            "joint_right_hip_pitch": -0.2,
+            "joint_right_knee_pitch": 0.4,
+            "joint_right_ankle_pitch": -0.2,
+            "joint_right_ankle_roll": 0.0,
+            "joint_left_hip_yaw": 0.0,
+            "joint_left_hip_roll": 0.0,
+            "joint_left_hip_pitch": -0.2,
+            "joint_left_knee_pitch": 0.4,
+            "joint_left_ankle_pitch": -0.2,
+            "joint_left_ankle_roll": 0.0
+        }
+    },
+    "foot_width_regularization": {
+        "root_name": "Hips",
+        "left_foot_name": "LeftFootMod",
+        "right_foot_name": "RightFootMod",
+        "max_width": 0.3
+    },
     "ik_match_table1": {
         "base_link": [
             "Hips", 0, 10,

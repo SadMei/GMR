@@ -79,6 +79,8 @@ class GeneralMotionRetargeting:
         self.use_ik_match_table2 = ik_config["use_ik_match_table2"]
         self.human_scale_table = ik_config["human_scale_table"]
         self.ground = ik_config["ground_height"] * np.array([0, 0, 1])
+        self.posture_regularization = ik_config.get("posture_regularization")
+        self.foot_width_regularization = ik_config.get("foot_width_regularization")
 
         self.max_iter = 10
 
@@ -146,6 +148,67 @@ class GeneralMotionRetargeting:
                 self.tasks2.append(task)
                 self.task_errors2[task] = []
 
+        if self.posture_regularization is not None:
+            for tasks in (self.tasks1, self.tasks2):
+                tasks.append(self._create_posture_task(self.posture_regularization))
+
+    def _create_posture_task(self, cfg):
+        """Create a joint-space regularizer without constraining the floating base."""
+        default_cost = float(cfg.get("default_cost", 0.0))
+        joint_costs = cfg.get("joint_costs", {})
+        joint_targets = cfg.get("joint_targets", {})
+        costs = np.zeros(self.model.nv, dtype=np.float64)
+        target_q = self.model.qpos0.copy()
+
+        for joint_id in range(self.model.njnt):
+            if self.model.jnt_type[joint_id] == mj.mjtJoint.mjJNT_FREE:
+                continue
+            joint_name = mj.mj_id2name(self.model, mj.mjtObj.mjOBJ_JOINT, joint_id)
+            dof_id = self.model.jnt_dofadr[joint_id]
+            qpos_id = self.model.jnt_qposadr[joint_id]
+            costs[dof_id] = float(joint_costs.get(joint_name, default_cost))
+            if joint_name in joint_targets:
+                target_q[qpos_id] = float(joint_targets[joint_name])
+
+        unknown_cost_joints = set(joint_costs) - self.robot_dof_names.keys()
+        unknown_target_joints = set(joint_targets) - self.robot_dof_names.keys()
+        if unknown_cost_joints or unknown_target_joints:
+            raise ValueError(
+                f"Unknown posture joints: costs={sorted(unknown_cost_joints)}, "
+                f"targets={sorted(unknown_target_joints)}"
+            )
+
+        task = mink.PostureTask(
+            self.model,
+            cost=costs,
+            lm_damping=float(cfg.get("lm_damping", 1.0e-3)),
+        )
+        task.set_target(target_q)
+        return task
+
+    def _regularize_foot_width(self, human_data):
+        """Clamp extreme source-foot separation in the human root frame."""
+        cfg = self.foot_width_regularization
+        if cfg is None:
+            return human_data
+
+        root_name = cfg["root_name"]
+        left_name = cfg["left_foot_name"]
+        right_name = cfg["right_foot_name"]
+        max_width = float(cfg["max_width"])
+        root_pos, root_quat = human_data[root_name]
+        root_rot = R.from_quat(root_quat, scalar_first=True)
+        left_local = root_rot.inv().apply(human_data[left_name][0] - root_pos)
+        right_local = root_rot.inv().apply(human_data[right_name][0] - root_pos)
+
+        midpoint_y = 0.5 * (left_local[1] + right_local[1])
+        separation_y = np.clip(left_local[1] - right_local[1], -max_width, max_width)
+        left_local[1] = midpoint_y + 0.5 * separation_y
+        right_local[1] = midpoint_y - 0.5 * separation_y
+        human_data[left_name][0] = root_pos + root_rot.apply(left_local)
+        human_data[right_name][0] = root_pos + root_rot.apply(right_local)
+        return human_data
+
   
     def update_targets(self, human_data, offset_to_ground=False):
         # scale human data in local frame
@@ -153,6 +216,7 @@ class GeneralMotionRetargeting:
         human_data = self.scale_human_data(human_data, self.human_root_name, self.human_scale_table)
         human_data = self.offset_human_data(human_data, self.pos_offsets1, self.rot_offsets1)
         human_data = self.apply_ground_offset(human_data)
+        human_data = self._regularize_foot_width(human_data)
         if offset_to_ground:
             human_data = self.offset_human_data_to_ground(human_data)
         self.scaled_human_data = human_data
