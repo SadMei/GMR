@@ -36,7 +36,7 @@ ROBOT_XML_DICT = {
 # retargeter still uses the raw floating-base kinematic model above.
 ROBOT_VIEWER_XML_DICT = {
     **ROBOT_XML_DICT,
-    "bsrl": ASSET_ROOT / "bsrl_scene.xml",
+    "bsrl": ASSET_ROOT / "BSRL_urdf" / "xml" / "bsrl_scene.xml",
 }
 
 # Extra local-frame rotation applied to root orientation for viewer-only models,

@@ -42,6 +42,9 @@ data/
 data_record/
 Download/
 assets/body_models/
+motion_data/
+motion_files/
+processed_motion_files/
 
 # Media files
 *.mp4
@@ -50,6 +53,20 @@ assets/body_models/
 *.wmv
 *.flv
 *.webm
+play_videos/
+replay_videos/
+
+# Robot geometry is supplied separately. Keep XML/URDF model definitions in
+# this repository, but do not version mesh payloads here.
+*.STL
+*.stl
+*.obj
+*.dae
+*.mtl
+*.ply
+*.fbx
+*.glb
+*.gltf
 
 # Archives
 *.zip
@@ -65,6 +82,9 @@ body_models/
 *.pth
 *.pt
 *.ckpt
+*.npz
+*.npy
+*.bvh
 
 # Logs
 MUJOCO_LOG.TXT
@@ -102,8 +122,6 @@ PythonClient/
 TEST_MOTIONS_MY.md
 
 tmp/
-
-motion_data/
 
 GVHMR/
 
