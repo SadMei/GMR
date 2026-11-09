@@ -33,7 +33,6 @@ conda install -c conda-forge libstdcxx-ng -y
 
 Core robot models in `assets/` directory:
 - Unitree G1 (`unitree_g1`) - 29 DOF humanoid
-- Booster T1 (`booster_t1`) - Full-body humanoid 
 - Booster K1 (`booster_k1`) - 22 DOF humanoid
 - Stanford ToddlerBot (`stanford_toddy`) - Research humanoid
 - Fourier N1 (`fourier_n1`) - Commercial humanoid
@@ -85,8 +84,8 @@ Add `--record_video --video_path <output.mp4>` to any visualization command to r
 - `general_motion_retargeting/`: Core library code
 - `assets/`: Robot models (MuJoCo XML) and body models (SMPL-X)
 - `general_motion_retargeting/ik_configs/`: JSON configuration files for human-to-robot body mappings:
-  - SMPL-X configs: `smplx_to_{g1,t1,k1,toddy,n1,pm01,kuavo,hi,r1pro}.json`
-  - BVH configs: `bvh_to_{g1,t1,toddy,n1,pm01}.json`
+  - SMPL-X configs: `smplx_to_{g1,k1,toddy,n1,pm01,kuavo,hi,r1pro}.json`
+  - BVH configs: `bvh_to_{g1,toddy,n1,pm01}.json`
   - FBX configs: `fbx_to_g1.json`
 
 ## Project Status & Features
